@@ -9,10 +9,10 @@ from inventario import Inventario
 def obtener_ruta_recurso(ruta_relativa):
     """Encuentra la ruta absoluta correcta tanto si es un .py como un .exe"""
     try:
-        # PyInstaller crea una carpeta temporal y guarda la ruta en _MEIPASS
+     
         ruta_base = sys._MEIPASS
     except Exception:
-        # Si se ejecuta como script normal, usa la ruta exacta donde está este archivo main.py
+     
         ruta_base = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(ruta_base, ruta_relativa)
 
@@ -22,7 +22,7 @@ class AplicacionAbarrotes(tk.Tk):
         self.title("Control de inventario- Lobos corporation")
         self.geometry("1024x720")
         
-        # 🟢 AQUÍ CARGAMOS EL LOGO DE FORMA SEGURA
+       
         ruta_logo = obtener_ruta_recurso("logo.ico")
         try:
             self.iconbitmap(ruta_logo)
@@ -37,7 +37,7 @@ class AplicacionAbarrotes(tk.Tk):
         
         self.configure(bg=self.BG_COLOR)
 
-        # Configurar estilos modernos
+       
         self.estilo = ttk.Style()
         self.estilo.theme_use('clam')
         
@@ -46,7 +46,7 @@ class AplicacionAbarrotes(tk.Tk):
         self.estilo.configure("Treeview.Heading", font=("Helvetica", 10, "bold"), background=self.BTN_BG, foreground=self.FG_COLOR)
         self.estilo.configure("Treeview", font=("Helvetica", 11), rowheight=30, background="white", foreground=self.FG_COLOR)
         
-        # Inicializar backend
+     
         self.db = Database()
         self.db.iniciar()
         self.inv = Inventario()
@@ -60,9 +60,7 @@ class AplicacionAbarrotes(tk.Tk):
         self.frame_actual = nuevo_frame
         self.frame_actual.pack(fill="both", expand=True)
 
-    # ==========================================
-    # SISTEMA DE LOGIN Y REGISTRO 
-    # ==========================================
+   
     def mostrar_login(self):
         frame = tk.Frame(self, bg=self.BG_COLOR)
         tarjeta = tk.Frame(frame, bg="white", padx=60, pady=50, relief="ridge", bd=2)
@@ -147,9 +145,7 @@ class AplicacionAbarrotes(tk.Tk):
         messagebox.showinfo("Registro Exitoso", f"El usuario '{usuario}' se ha creado correctamente.\nYa puedes iniciar sesión.")
         self.mostrar_login()
 
-    # ==========================================
-    # VENTANAS EMERGENTES
-    # ==========================================
+   
     def ventana_catalogo(self):
         ventana = tk.Toplevel(self)
         ventana.title("Catálogo de Productos")
@@ -535,9 +531,8 @@ class AplicacionAbarrotes(tk.Tk):
             for m in movs:
                 tree.insert("", "end", values=(m['id_mov'], m['nombre'], m['tipo'], m['cantidad'], m['fecha']))
 
-    # ==========================================
-    # INTERFAZ DE PUNTO DE INVENTARIO / ALMACÉN
-    # ==========================================
+ 
+   
     def mostrar_almacen(self, rol, nombre_usuario):
         frame = tk.Frame(self, bg=self.BG_COLOR)
 
