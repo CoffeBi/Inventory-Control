@@ -1,18 +1,17 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from datetime import datetime
 import os
 import sys
+import csv
 from database import Database
 from inventario import Inventario
 
 def obtener_ruta_recurso(ruta_relativa):
     """Encuentra la ruta absoluta correcta tanto si es un .py como un .exe"""
     try:
-     
         ruta_base = sys._MEIPASS
     except Exception:
-     
         ruta_base = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(ruta_base, ruta_relativa)
 
@@ -20,14 +19,13 @@ class AplicacionAbarrotes(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Control de inventario- Lobos corporation")
-        self.geometry("1024x720")
+        self.geometry("1080x720")
         
-       
         ruta_logo = obtener_ruta_recurso("logo.ico")
         try:
             self.iconbitmap(ruta_logo)
         except Exception as e:
-            print(f"⚠️ Aviso: No se pudo cargar el ícono. Verificando en: {ruta_logo}")
+            print(f"⚠ Aviso: No se pudo cargar el ícono. Verificando en: {ruta_logo}")
             print(f"Error técnico: {e}")
         
         # --- PALETA DE COLORES ---
@@ -37,7 +35,6 @@ class AplicacionAbarrotes(tk.Tk):
         
         self.configure(bg=self.BG_COLOR)
 
-       
         self.estilo = ttk.Style()
         self.estilo.theme_use('clam')
         
@@ -46,7 +43,6 @@ class AplicacionAbarrotes(tk.Tk):
         self.estilo.configure("Treeview.Heading", font=("Helvetica", 10, "bold"), background=self.BTN_BG, foreground=self.FG_COLOR)
         self.estilo.configure("Treeview", font=("Helvetica", 11), rowheight=30, background="white", foreground=self.FG_COLOR)
         
-     
         self.db = Database()
         self.db.iniciar()
         self.inv = Inventario()
@@ -60,7 +56,6 @@ class AplicacionAbarrotes(tk.Tk):
         self.frame_actual = nuevo_frame
         self.frame_actual.pack(fill="both", expand=True)
 
-   
     def mostrar_login(self):
         frame = tk.Frame(self, bg=self.BG_COLOR)
         tarjeta = tk.Frame(frame, bg="white", padx=60, pady=50, relief="ridge", bd=2)
@@ -145,11 +140,10 @@ class AplicacionAbarrotes(tk.Tk):
         messagebox.showinfo("Registro Exitoso", f"El usuario '{usuario}' se ha creado correctamente.\nYa puedes iniciar sesión.")
         self.mostrar_login()
 
-   
     def ventana_catalogo(self):
         ventana = tk.Toplevel(self)
         ventana.title("Catálogo de Productos")
-        ventana.geometry("850x600")
+        ventana.geometry("1000x600")
         ventana.configure(bg=self.BG_COLOR)
         ventana.transient(self)
         ventana.grab_set()
@@ -168,12 +162,14 @@ class AplicacionAbarrotes(tk.Tk):
         frame_tabla = tk.Frame(tarjeta)
         frame_tabla.pack(fill="both", expand=True)
 
-        columnas = ("check", "id", "nombre", "categoria", "precio", "stock", "minimo")
+        # Se incluye la columna 'descripcion'
+        columnas = ("check", "id", "nombre", "descripcion", "categoria", "precio", "stock", "minimo")
         tree = ttk.Treeview(frame_tabla, columns=columnas, show="headings", selectmode="none")
         
         tree.heading("check", text="✔")
         tree.heading("id", text="Código")
         tree.heading("nombre", text="Nombre del Producto")
+        tree.heading("descripcion", text="Descripción / Características")
         tree.heading("categoria", text="Categoría")
         tree.heading("precio", text="Precio")
         tree.heading("stock", text="Stock Actual")
@@ -181,11 +177,12 @@ class AplicacionAbarrotes(tk.Tk):
 
         tree.column("check", width=40, anchor="center")
         tree.column("id", width=80, anchor="center")
-        tree.column("nombre", width=250, anchor="w")
-        tree.column("categoria", width=120, anchor="center")
-        tree.column("precio", width=90, anchor="center")
-        tree.column("stock", width=90, anchor="center")
-        tree.column("minimo", width=90, anchor="center")
+        tree.column("nombre", width=180, anchor="w")
+        tree.column("descripcion", width=220, anchor="w")
+        tree.column("categoria", width=110, anchor="center")
+        tree.column("precio", width=80, anchor="center")
+        tree.column("stock", width=80, anchor="center")
+        tree.column("minimo", width=80, anchor="center")
 
         tree.tag_configure("BAJO", foreground="#c0392b", background="#fdedec")
 
@@ -199,7 +196,8 @@ class AplicacionAbarrotes(tk.Tk):
         if todos:
             for p in todos:
                 tag = "BAJO" if p["cantidad"] <= p["stock_minimo"] else "NORMAL"
-                tree.insert("", "end", values=("☐", p['id'], p['nombre'], p['categoria'], f"${p['precio']:.2f}", p['cantidad'], p['stock_minimo']), tags=(tag,))
+                desc = p.get("descripcion", "") or "Sin descripción"
+                tree.insert("", "end", values=("☐", p['id'], p['nombre'], desc, p['categoria'], f"${p['precio']:.2f}", p['cantidad'], p['stock_minimo']), tags=(tag,))
         else:
             messagebox.showinfo("Inventario Vacío", "No hay productos registrados en el sistema.", parent=ventana)
 
@@ -392,7 +390,7 @@ class AplicacionAbarrotes(tk.Tk):
     def ventana_buscar_producto(self):
         ventana = tk.Toplevel(self)
         ventana.title("Buscador de Productos")
-        ventana.geometry("700x450")
+        ventana.geometry("850x450")
         ventana.configure(bg=self.BG_COLOR)
         ventana.transient(self)
         ventana.grab_set()
@@ -412,18 +410,21 @@ class AplicacionAbarrotes(tk.Tk):
         entry_busqueda = ttk.Entry(top_frame, font=("Helvetica", 12), width=40)
         entry_busqueda.pack(side="left", padx=5)
 
-        columnas = ("id", "nombre", "categoria", "precio", "stock")
+        # Se incluye la columna 'descripcion'
+        columnas = ("id", "nombre", "descripcion", "categoria", "precio", "stock")
         tree_resultados = ttk.Treeview(tarjeta, columns=columnas, show="headings", height=10)
         
         tree_resultados.heading("id", text="Código")
         tree_resultados.heading("nombre", text="Nombre")
+        tree_resultados.heading("descripcion", text="Descripción / Características")
         tree_resultados.heading("categoria", text="Categoría")
         tree_resultados.heading("precio", text="Precio")
         tree_resultados.heading("stock", text="Stock")
 
         tree_resultados.column("id", width=80, anchor="center")
-        tree_resultados.column("nombre", width=250, anchor="w")
-        tree.column("categoria", width=120, anchor="center")
+        tree_resultados.column("nombre", width=180, anchor="w")
+        tree_resultados.column("descripcion", width=220, anchor="w")
+        tree_resultados.column("categoria", width=110, anchor="center")
         tree_resultados.column("precio", width=80, anchor="center")
         tree_resultados.column("stock", width=60, anchor="center")
 
@@ -449,7 +450,8 @@ class AplicacionAbarrotes(tk.Tk):
 
             if resultados:
                 for p in resultados:
-                    tree_resultados.insert("", "end", values=(p['id'], p['nombre'], p['categoria'], f"${p['precio']:.2f}", p['cantidad']))
+                    desc = p.get("descripcion", "") or "Sin descripción"
+                    tree_resultados.insert("", "end", values=(p['id'], p['nombre'], desc, p['categoria'], f"${p['precio']:.2f}", p['cantidad']))
             else:
                 messagebox.showinfo("Sin resultados", "No se encontró ningún producto con ese criterio.", parent=ventana)
 
@@ -531,8 +533,106 @@ class AplicacionAbarrotes(tk.Tk):
             for m in movs:
                 tree.insert("", "end", values=(m['id_mov'], m['nombre'], m['tipo'], m['cantidad'], m['fecha']))
 
- 
-   
+    # --- FUNCIONALIDADES DE CSV ---
+    def exportar_csv(self):
+        """Exporta todos los productos del inventario a un archivo CSV."""
+        productos = self.db.obtener_todos()
+        if not productos:
+            messagebox.showwarning("Atención", "No hay productos en el inventario para exportar.")
+            return
+
+        ruta_archivo = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("Archivos CSV", "*.csv"), ("Todos los archivos", "*.*")],
+            title="Guardar inventario como CSV"
+        )
+        if not ruta_archivo:
+            return
+
+        try:
+            with open(ruta_archivo, mode="w", newline="", encoding="utf-8-sig") as archivo:
+                escritor = csv.writer(archivo)
+                escritor.writerow(["id", "nombre", "descripcion", "categoria", "precio", "cantidad", "stock_minimo"])
+                
+                for p in productos:
+                    escritor.writerow([
+                        p.get("id", ""),
+                        p.get("nombre", ""),
+                        p.get("descripcion", ""),
+                        p.get("categoria", ""),
+                        p.get("precio", 0),
+                        p.get("cantidad", 0),
+                        p.get("stock_minimo", 0)
+                    ])
+            messagebox.showinfo("Éxito", f"Inventario exportado correctamente a:\n{ruta_archivo}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Ocurrió un error al exportar el archivo CSV:\n{e}")
+
+    def importar_csv(self):
+        """Importa productos desde un archivo CSV omitiendo IDs repetidos y notificando filas inválidas."""
+        ruta_archivo = filedialog.askopenfilename(
+            filetypes=[("Archivos CSV", "*.csv"), ("Todos los archivos", "*.*")],
+            title="Seleccionar archivo CSV para importar"
+        )
+        if not ruta_archivo:
+            return
+
+        insertados = 0
+        repetidos = 0
+        invalidos = []
+
+        try:
+            with open(ruta_archivo, mode="r", encoding="utf-8-sig") as archivo:
+                lector = csv.DictReader(archivo)
+                for num_fila, fila in enumerate(lector, start=2):
+                    try:
+                        id_p = fila.get("id", "").strip()
+                        nombre = fila.get("nombre", "").strip()
+                        
+                        if not id_p or not nombre:
+                            invalidos.append(f"Fila {num_fila}: Falta Código o Nombre")
+                            continue
+
+                        if self.db.obtener_uno(id_p):
+                            repetidos += 1
+                            continue
+
+                        precio = float(fila.get("precio", 0))
+                        cantidad = int(fila.get("cantidad", 0))
+                        stock_minimo = int(fila.get("stock_minimo", 0))
+
+                        if precio < 0 or cantidad < 0 or stock_minimo < 0:
+                            invalidos.append(f"Fila {num_fila}: Valores numéricos negativos")
+                            continue
+
+                        producto = {
+                            "id": id_p,
+                            "nombre": nombre,
+                            "descripcion": fila.get("descripcion", "").strip(),
+                            "categoria": fila.get("categoria", "").strip(),
+                            "precio": precio,
+                            "cantidad": cantidad,
+                            "stock_minimo": stock_minimo
+                        }
+                        self.db.insertar(producto)
+                        self.inv.pila.push(f"Alta (CSV): {nombre} (ID: {id_p})")
+                        insertados += 1
+
+                    except (ValueError, KeyError) as err:
+                        invalidos.append(f"Fila {num_fila}: Formato inválido ({err})")
+                        continue
+
+            mensaje = f"Proceso completado:\n• Productos insertados: {insertados}\n• IDs omitidos (repetidos): {repetidos}"
+            if invalidos:
+                mensaje += f"\n• Filas con errores ({len(invalidos)}):\n  - " + "\n  - ".join(invalidos[:5])
+                if len(invalidos) > 5:
+                    mensaje += f"\n  ... y {len(invalidos) - 5} errores más."
+
+            messagebox.showinfo("Resultado de la Importación", mensaje)
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Ocurrió un error al abrir/leer el archivo CSV:\n{e}")
+
     def mostrar_almacen(self, rol, nombre_usuario):
         frame = tk.Frame(self, bg=self.BG_COLOR)
 
@@ -544,6 +644,9 @@ class AplicacionAbarrotes(tk.Tk):
         ttk.Button(top_nav, text="📊 Reporte General", style="Header.TButton", command=self.ventana_reporte).pack(side="left", padx=2, pady=2)
         ttk.Button(top_nav, text="⚠️ Stock Bajo", style="Header.TButton", command=self.ventana_stock_bajo).pack(side="left", padx=2, pady=2)
         
+        ttk.Button(top_nav, text="📥 Importar CSV", style="Header.TButton", command=self.importar_csv).pack(side="left", padx=2, pady=2)
+        ttk.Button(top_nav, text="📤 Exportar CSV", style="Header.TButton", command=self.exportar_csv).pack(side="left", padx=2, pady=2)
+
         ttk.Button(top_nav, text="Salir", command=self.mostrar_login).pack(side="right", padx=5, pady=2)
         tk.Label(top_nav, text=f"Almacenista: {nombre_usuario} ({rol})", bg=self.BG_COLOR, fg=self.FG_COLOR, font=("Helvetica", 10, "bold")).pack(side="right", padx=15)
 
@@ -587,7 +690,7 @@ class AplicacionAbarrotes(tk.Tk):
         self.tree.heading("descripcion", text="Descripción del Producto")
         self.tree.heading("operacion", text="Operación")
         self.tree.heading("cantidad", text="Cant. Movida")
-        self.tree.heading("stock", text="Stock Final")
+        tree_stock = self.tree.heading("stock", text="Stock Final")
 
         self.tree.column("hora", width=100, anchor="center")
         self.tree.column("codigo", width=120, anchor="center")
